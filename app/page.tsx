@@ -80,7 +80,10 @@ export default function Home() {
             body: formData,
           });
 
-          if (!res.ok) throw new Error("Failed to save recording");
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.details || errorData.error || "Failed to save recording");
+          }
 
           const newRecording = await res.json();
           setRecordings((prev) => [newRecording, ...prev]);
@@ -89,7 +92,7 @@ export default function Home() {
           stream.getTracks().forEach((track) => track.stop());
         } catch (err) {
           console.error("Upload failed:", err);
-          setError("Failed to save recording");
+          setError(err instanceof Error ? err.message : "Failed to save recording");
         }
       };
 
