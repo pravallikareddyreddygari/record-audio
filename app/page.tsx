@@ -137,11 +137,14 @@ export default function Home() {
   const deleteRecording = async (id: string, filename: string) => {
     try {
       const res = await fetch(`/api/recordings/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.details || errorData.error || "Failed to delete");
+      }
       setRecordings((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       console.error(err);
-      setError("Failed to delete recording");
+      setError(err instanceof Error ? err.message : "Failed to delete recording");
     }
   };
 
@@ -226,7 +229,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={stopRecording}
-                      className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition-all hover:scale-105 hover:bg-black active:scale-95 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                      className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-red-700 active:scale-95"
                       aria-label="Stop recording"
                     >
                       <Square size={28} />

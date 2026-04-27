@@ -11,6 +11,10 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    if (!id) {
+      return NextResponse.json({ error: "Recording ID is required" }, { status: 400 });
+    }
+
     // Find recording in DB
     const recording = await prisma.recording.findUnique({
       where: { id },
@@ -30,13 +34,21 @@ export async function DELETE(
     }
 
     // Delete record from database
-    await prisma.recording.delete({
-      where: { id },
-    });
+    try {
+      await prisma.recording.delete({
+        where: { id },
+      });
+    } catch (dbError) {
+      // Record may have already been deleted, but file was removed
+      console.warn("Database delete failed (record may already be deleted):", dbError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete recording:", error);
-    return NextResponse.json({ error: "Failed to delete recording" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete recording", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
