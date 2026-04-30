@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { unlink } from "fs/promises";
 import path from "path";
+import { recordings } from "@/lib/storage";
 
 // DELETE /api/recordings/[id] - Delete a recording
 export async function DELETE(
@@ -15,14 +15,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Recording ID is required" }, { status: 400 });
     }
 
-    // Find recording in DB
-    const recording = await prisma.recording.findUnique({
-      where: { id },
-    });
-
-    if (!recording) {
+    // Find recording in memory
+    const recordingIndex = recordings.findIndex(r => r.id === id);
+    if (recordingIndex === -1) {
       return NextResponse.json({ error: "Recording not found" }, { status: 404 });
     }
+
+    const recording = recordings[recordingIndex];
 
     // Delete file from filesystem
     const filepath = path.join(process.cwd(), "public", "recordings", recording.filename);
@@ -33,15 +32,8 @@ export async function DELETE(
       console.warn("File not found:", filepath);
     }
 
-    // Delete record from database
-    try {
-      await prisma.recording.delete({
-        where: { id },
-      });
-    } catch (dbError) {
-      // Record may have already been deleted, but file was removed
-      console.warn("Database delete failed (record may already be deleted):", dbError);
-    }
+    // Remove from recordings array
+    recordings.splice(recordingIndex, 1);
 
     return NextResponse.json({ success: true });
   } catch (error) {

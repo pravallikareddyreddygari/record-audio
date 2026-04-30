@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { recordings } from "@/lib/storage";
 
 // GET /api/recordings - List all recordings
 export async function GET() {
   try {
-    const recordings = await prisma.recording.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-
     const recordingsWithUrls = recordings.map((r) => ({
       id: r.id,
       filename: r.filename,
@@ -49,13 +45,16 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     await writeFile(filepath, buffer);
 
-    // Create database record
-    const recording = await prisma.recording.create({
-      data: {
-        filename,
-        duration: duration,
-      },
-    });
+    // Create in-memory record
+    const recording = {
+      id: timestamp.toString(),
+      filename,
+      duration: duration,
+      createdAt: new Date(timestamp),
+    };
+
+    // Add to recordings array
+    recordings.unshift(recording);
 
     return NextResponse.json(
       {

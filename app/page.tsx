@@ -28,28 +28,20 @@ export default function Home() {
 
   // Fetch recordings on mount
   useEffect(() => {
-    fetchRecordings();
+    (async () => {
+      try {
+        const res = await fetch("/api/recordings");
+        if (!res.ok) throw new Error("Failed to fetch recordings");
+        const data = await res.json();
+        setRecordings(data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load recordings");
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, []);
-
-  const fetchRecordings = async () => {
-    try {
-      const res = await fetch("/api/recordings");
-      if (!res.ok) throw new Error("Failed to fetch recordings");
-      const data = await res.json();
-      setRecordings(data);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load recordings");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
 
   const startRecording = async () => {
     try {
@@ -134,7 +126,7 @@ export default function Home() {
     }
   };
 
-  const deleteRecording = async (id: string, filename: string) => {
+  const deleteRecording = async (id: string) => {
     try {
       const res = await fetch(`/api/recordings/${id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -175,6 +167,12 @@ export default function Home() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   useEffect(() => {
@@ -320,7 +318,7 @@ export default function Home() {
                       <Download size={18} />
                     </button>
                     <button
-                      onClick={() => deleteRecording(recording.id, recording.filename)}
+                      onClick={() => deleteRecording(recording.id)}
                       className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-red-100 hover:text-red-600 dark:text-zinc-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                       aria-label="Delete recording"
                     >
