@@ -27,7 +27,7 @@ export async function DELETE(
     const filepath = path.join(process.cwd(), "public", "recordings", recording.filename);
     try {
       await unlink(filepath);
-    } catch (err) {
+    } catch {
       // File may not exist, continue
       console.warn("File not found:", filepath);
     }

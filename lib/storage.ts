@@ -29,7 +29,7 @@ export async function loadRecordings() {
         }
         return null;
       })
-      .filter(Boolean)
+      .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   } catch (error) {
     console.error("Failed to load recordings:", error);
