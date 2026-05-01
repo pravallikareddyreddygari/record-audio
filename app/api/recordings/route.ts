@@ -1,23 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { recordings } from "@/lib/storage";
+import { getRecordings, createRecording } from "@/lib/storage";
 
 // GET /api/recordings - List all recordings
 export async function GET() {
   try {
+    const recordings = await getRecordings();
     const recordingsWithUrls = recordings.map((r) => ({
       id: r.id,
       filename: r.filename,
       duration: r.duration,
       createdAt: r.createdAt,
-      url: `/recordings/${r.filename}`,
+      url: r.url,
     }));
 
-    return NextResponse.json(recordingsWithUrls);
+    return NextResponse.json(recordingsWithUrls, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch recordings:", error);
-    return NextResponse.json({ error: "Failed to fetch recordings" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch recordings" }, {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
 
@@ -35,26 +43,17 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const filename = `recording-${timestamp}.webm`;
-    const filepath = path.join(process.cwd(), "public", "recordings", filename);
 
-    // Ensure directory exists
-    await mkdir(path.join(process.cwd(), "public", "recordings"), { recursive: true });
-
-    // Convert Blob to Buffer and save
+    // Convert Blob to Buffer
     const arrayBuffer = await audioBlob.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    await writeFile(filepath, buffer);
 
-    // Create in-memory record
-    const recording = {
-      id: timestamp.toString(),
-      filename,
-      duration: duration,
-      createdAt: new Date(timestamp),
-    };
+    // Create recording in database with audio data
+    const recording = await createRecording(filename, duration, buffer);
 
-    // Add to recordings array
-    recordings.unshift(recording);
+    if (!recording) {
+      return NextResponse.json({ error: "Failed to save recording to database" }, { status: 500 });
+    }
 
     return NextResponse.json(
       {
@@ -62,16 +61,26 @@ export async function POST(request: NextRequest) {
         filename: recording.filename,
         duration: recording.duration,
         createdAt: recording.createdAt,
-        url: `/recordings/${recording.filename}`,
+        url: recording.url,
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
   } catch (error) {
     console.error("Failed to save recording:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: "Failed to save recording", details: errorMessage },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
   }
 }

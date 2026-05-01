@@ -30,12 +30,19 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/recordings");
-        if (!res.ok) throw new Error("Failed to fetch recordings");
+        const res = await fetch("/api/recordings", {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!res.ok) {
+          console.error("Response status:", res.status, "Response:", await res.text());
+          throw new Error(`Failed to fetch recordings: ${res.status}`);
+        }
         const data = await res.json();
         setRecordings(data);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching recordings:", err);
         setError("Failed to load recordings");
       } finally {
         setIsLoading(false);
@@ -60,7 +67,7 @@ export default function Home() {
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        
+
         // Upload to server
         const formData = new FormData();
         formData.append("audio", blob, "recording.webm");
@@ -79,12 +86,12 @@ export default function Home() {
 
           const newRecording = await res.json();
           setRecordings((prev) => [newRecording, ...prev]);
-
-          // Clean up stream
-          stream.getTracks().forEach((track) => track.stop());
         } catch (err) {
           console.error("Upload failed:", err);
           setError(err instanceof Error ? err.message : "Failed to save recording");
+        } finally {
+          // Clean up stream
+          stream.getTracks().forEach((track) => track.stop());
         }
       };
 
@@ -122,6 +129,7 @@ export default function Home() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
+      setDuration(0);
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
@@ -192,7 +200,7 @@ export default function Home() {
             Record
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400">
-            Simple audio recordings, right from your browser
+            Built with Next.js, Prisma & SQLite
           </p>
         </header>
 
