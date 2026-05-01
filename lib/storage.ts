@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
-import { readdir, mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { put } from '@vercel/blob';
 
 // Export type for consistency
 export type Recording = {
@@ -8,7 +7,6 @@ export type Recording = {
   filename: string;
   duration: number;
   createdAt: Date;
-  audioBuffer?: Buffer;
   url: string;
 };
 
@@ -24,8 +22,7 @@ export async function getRecordings(): Promise<Recording[]> {
       filename: r.filename,
       duration: r.duration,
       createdAt: r.createdAt,
-      audioBuffer: r.audioData ? Buffer.from(r.audioData) : undefined,
-      url: r.audioData ? `data:audio/webm;base64,${r.audioData.toString('base64')}` : "",
+      url: r.url,
     }));
   } catch (error) {
     console.error("Failed to fetch recordings:", error);
@@ -37,15 +34,21 @@ export async function getRecordings(): Promise<Recording[]> {
 export async function createRecording(
   filename: string,
   duration: number,
-  audioBuffer?: Buffer
+  audioBuffer: Buffer
 ): Promise<Recording | null> {
   try {
-    // Save recording to database with audio data
+    // Upload audio to Vercel Blob
+    const blob = await put(filename, audioBuffer, {
+      access: 'public',
+      contentType: 'audio/webm',
+    });
+
+    // Save recording metadata to database
     const recording = await prisma.recording.create({
       data: {
         filename,
         duration,
-        audioData: audioBuffer,
+        url: blob.url,
       },
     });
 
@@ -54,8 +57,7 @@ export async function createRecording(
       filename: recording.filename,
       duration: recording.duration,
       createdAt: recording.createdAt,
-      audioBuffer: recording.audioData ? Buffer.from(recording.audioData) : undefined,
-      url: recording.audioData ? `data:audio/webm;base64,${recording.audioData.toString('base64')}` : "",
+      url: recording.url,
     };
   } catch (error) {
     console.error("Failed to create recording:", error);
