@@ -10,47 +10,41 @@ const isServerless = process.env.VERCEL === "1" || process.env.VERCEL_ENV !== un
 // GET /api/recordings - List all recordings
 export async function GET() {
   try {
-    console.log("Fetching recordings from database...");
+    console.log("[GET /api/recordings] Starting...");
+    console.log("[GET /api/recordings] DATABASE_URL:", process.env.DATABASE_URL ? "set" : "not set");
+    
     const recordings = await prisma.recording.findMany({
       orderBy: { createdAt: "desc" },
     });
 
-    console.log(`Found ${recordings.length} recordings`);
+    console.log(`[GET /api/recordings] Found ${recordings.length} recordings`);
 
     const recordingsWithUrls = recordings.map((r) => ({
       id: r.id,
       filename: r.filename,
       duration: r.duration,
-      createdAt: r.createdAt,
+      createdAt: r.createdAt.toISOString(),
       url: r.url,
     }));
 
-    return NextResponse.json(recordingsWithUrls, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    console.log("[GET /api/recordings] Returning response");
+    return NextResponse.json(recordingsWithUrls);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const errorStack = error instanceof Error ? error.stack : "";
-    console.error("Failed to fetch recordings:", errorMessage);
-    console.error("Error stack:", errorStack);
-    console.error("Full error:", error);
+    const errorCode = error instanceof Error && "code" in error ? (error as any).code : "UNKNOWN";
+    
+    console.error("[GET /api/recordings] Error:", errorMessage);
+    console.error("[GET /api/recordings] Error code:", errorCode);
+    console.error("[GET /api/recordings] Full error:", error);
     
     return NextResponse.json(
       { 
         error: "Failed to fetch recordings",
         details: errorMessage,
-        stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
+        code: errorCode,
         env: process.env.NODE_ENV,
-        timestamp: new Date().toISOString(),
       },
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
+      { status: 500 }
     );
   }
 }

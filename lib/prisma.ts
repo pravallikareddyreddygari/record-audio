@@ -1,5 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 
+// Check if DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL environment variable is not set!");
+  console.error("Please set DATABASE_URL in your environment variables.");
+  if (process.env.VERCEL === "1") {
+    console.error("For Vercel: Go to Settings → Environment Variables and add DATABASE_URL");
+  }
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
