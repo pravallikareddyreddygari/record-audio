@@ -10,9 +10,12 @@ const isServerless = process.env.VERCEL === "1" || process.env.VERCEL_ENV !== un
 // GET /api/recordings - List all recordings
 export async function GET() {
   try {
+    console.log("Fetching recordings from database...");
     const recordings = await prisma.recording.findMany({
       orderBy: { createdAt: "desc" },
     });
+
+    console.log(`Found ${recordings.length} recordings`);
 
     const recordingsWithUrls = recordings.map((r) => ({
       id: r.id,
@@ -29,12 +32,18 @@ export async function GET() {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Failed to fetch recordings:", errorMessage, error);
+    const errorStack = error instanceof Error ? error.stack : "";
+    console.error("Failed to fetch recordings:", errorMessage);
+    console.error("Error stack:", errorStack);
+    console.error("Full error:", error);
+    
     return NextResponse.json(
       { 
         error: "Failed to fetch recordings",
         details: errorMessage,
+        stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
         env: process.env.NODE_ENV,
+        timestamp: new Date().toISOString(),
       },
       {
         status: 500,

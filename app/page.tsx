@@ -36,14 +36,21 @@ export default function Home() {
           },
         });
         if (!res.ok) {
-          console.error("Response status:", res.status, "Response:", await res.text());
-          throw new Error(`Failed to fetch recordings: ${res.status}`);
+          const errorText = await res.text();
+          console.error("Response status:", res.status, "Response:", errorText);
+          try {
+            const errorData = JSON.parse(errorText);
+            throw new Error(errorData.details || errorData.error || `Failed to fetch recordings: ${res.status}`);
+          } catch {
+            throw new Error(`Failed to fetch recordings: ${res.status}`);
+          }
         }
         const data = await res.json();
         setRecordings(data);
       } catch (err) {
-        console.error("Error fetching recordings:", err);
-        setError("Failed to load recordings");
+        const errorMsg = err instanceof Error ? err.message : "Failed to load recordings";
+        console.error("Error fetching recordings:", errorMsg, err);
+        setError(errorMsg);
       } finally {
         setIsLoading(false);
       }
