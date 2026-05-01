@@ -4,6 +4,9 @@ import { put } from "@vercel/blob";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+// Determine if we're in a serverless environment
+const isServerless = process.env.VERCEL === "1" || process.env.VERCEL_ENV !== undefined;
+
 // GET /api/recordings - List all recordings
 export async function GET() {
   try {
@@ -64,16 +67,19 @@ export async function POST(request: NextRequest) {
 
     let url: string;
 
-    // Use Vercel Blob in production, filesystem in development
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      // Production: Upload to Vercel Blob
+    // Use Vercel Blob in serverless/production, filesystem in local development
+    if (isServerless || process.env.BLOB_READ_WRITE_TOKEN) {
+      // Production/Serverless: Upload to Vercel Blob
+      if (!process.env.BLOB_READ_WRITE_TOKEN) {
+        throw new Error("BLOB_READ_WRITE_TOKEN is required for Vercel deployment");
+      }
       const blob = await put(filename, buffer, {
         access: "public",
         contentType: "audio/webm",
       });
       url = blob.url;
     } else {
-      // Development: Save to filesystem
+      // Local development: Save to filesystem
       const filepath = path.join(process.cwd(), "public", "recordings", filename);
       await mkdir(path.join(process.cwd(), "public", "recordings"), { recursive: true });
       await writeFile(filepath, buffer);

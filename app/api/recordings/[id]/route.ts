@@ -4,6 +4,9 @@ import { del } from "@vercel/blob";
 import { unlink } from "fs/promises";
 import path from "path";
 
+// Determine if we're in a serverless environment
+const isServerless = process.env.VERCEL === "1" || process.env.VERCEL_ENV !== undefined;
+
 // DELETE /api/recordings/[id] - Delete a recording
 export async function DELETE(
   request: NextRequest,
@@ -26,15 +29,15 @@ export async function DELETE(
     }
 
     // Delete file based on environment
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      // Production: Delete from Vercel Blob
+    if (isServerless || process.env.BLOB_READ_WRITE_TOKEN) {
+      // Production/Serverless: Delete from Vercel Blob
       try {
         await del(recording.url);
       } catch (err) {
         console.warn("Failed to delete blob:", err);
       }
     } else {
-      // Development: Delete from filesystem
+      // Local development: Delete from filesystem
       try {
         const filepath = path.join(process.cwd(), "public", "recordings", recording.filename);
         await unlink(filepath);
