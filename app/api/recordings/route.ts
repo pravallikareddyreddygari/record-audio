@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRecordings, createRecording } from "@/lib/storage";
+import { prisma } from "@/lib/prisma";
+import { put } from "@vercel/blob";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 // GET /api/recordings - List all recordings
 export async function GET() {
   try {
-    const recordings = await getRecordings();
+    const recordings = await prisma.recording.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
     const recordingsWithUrls = recordings.map((r) => ({
       id: r.id,
       filename: r.filename,
@@ -19,13 +25,21 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch recordings:", error);
-    return NextResponse.json({ error: "Failed to fetch recordings" }, {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to fetch recordings:", errorMessage, error);
+    return NextResponse.json(
+      { 
+        error: "Failed to fetch recordings",
+        details: errorMessage,
+        env: process.env.NODE_ENV,
       },
-    });
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   }
 }
 
@@ -48,12 +62,32 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await audioBlob.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Create recording in database with audio data
-    const recording = await createRecording(filename, duration, buffer);
+    let url: string;
 
-    if (!recording) {
-      return NextResponse.json({ error: "Failed to save recording to database" }, { status: 500 });
+    // Use Vercel Blob in production, filesystem in development
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      // Production: Upload to Vercel Blob
+      const blob = await put(filename, buffer, {
+        access: "public",
+        contentType: "audio/webm",
+      });
+      url = blob.url;
+    } else {
+      // Development: Save to filesystem
+      const filepath = path.join(process.cwd(), "public", "recordings", filename);
+      await mkdir(path.join(process.cwd(), "public", "recordings"), { recursive: true });
+      await writeFile(filepath, buffer);
+      url = `/recordings/${filename}`;
     }
+
+    // Create database record
+    const recording = await prisma.recording.create({
+      data: {
+        filename,
+        duration: duration,
+        url: url,
+      },
+    });
 
     return NextResponse.json(
       {
