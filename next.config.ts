@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   experimental: {
     webpackBuildWorker: true,
   },
+  turbopack: false,
 };
 
 export default nextConfig;
