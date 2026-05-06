@@ -29,9 +29,9 @@ export async function GET() {
 
     console.log("[GET /api/recordings] Returning response");
     return NextResponse.json(recordingsWithUrls);
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const errorCode = error instanceof Error && "code" in error ? (error as any).code : "UNKNOWN";
+    const errorCode = error instanceof Error && "code" in error ? (error as { code?: string }).code : "UNKNOWN";
     
     console.error("[GET /api/recordings] Error:", errorMessage);
     console.error("[GET /api/recordings] Error code:", errorCode);
