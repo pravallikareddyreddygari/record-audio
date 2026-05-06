@@ -51,8 +51,15 @@ export async function DELETE(
       await prisma.recording.delete({
         where: { id },
       });
-    } catch (deleteError: any) {
-      if (deleteError.code === 'P2025' || deleteError.message.includes('Record to delete does not exist')) {
+    } catch (deleteError: unknown) {
+      if (
+        deleteError &&
+        typeof deleteError === 'object' &&
+        'code' in deleteError &&
+        (deleteError.code === 'P2025' ||
+         ('message' in deleteError && typeof deleteError.message === 'string' &&
+          deleteError.message.includes('Record to delete does not exist')))
+      ) {
         return NextResponse.json({ success: true });
       }
       throw deleteError;
